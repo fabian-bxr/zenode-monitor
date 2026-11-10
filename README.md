@@ -39,6 +39,22 @@ uv run zenode-monitor
 | **Connect** ![Connection form](docs/screenshots/connect.png) | **Node** ![Node detail with metric charts](docs/screenshots/node.png) |
 | **Topic** ![Live messages of a topic](docs/screenshots/topic.png) | **Service** ![Service request form](docs/screenshots/service.png) |
 
+## Releases
+
+`.github/workflows/release.yml` builds a standalone binary with `flet pack` for Linux (x86_64 and arm64), Windows (x86_64) and macOS (Apple Silicon).
+
+- Pushing a tag that matches the version in `pyproject.toml` (for example `v0.1.0`) builds all four and attaches them to a new GitHub release.
+- "Run workflow" on the Actions page builds them without releasing; the archives are kept as workflow artifacts.
+
+To build one locally for the platform you are on:
+
+```bash
+uv run --with pyinstaller flet pack src/zenode_monitor/main.py --name zenode-monitor \
+  --pyinstaller-build-args=--copy-metadata=zenode
+```
+
+The binaries are not code-signed, so Windows and macOS warn on first start.
+
 ## Development
 
 ```bash

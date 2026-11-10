@@ -1,0 +1,105 @@
+# Builds a standalone zenode-monitor binary for Linux (x86_64, arm64), Windows and macOS (arm64).
+#
+#   push a tag like v0.1.0  -> build all targets, create a GitHub release, attach the archives
+#   "Run workflow" button   -> build only; the archives are kept as workflow artifacts
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest Ubuntu runner, so the binary also starts on older distributions.
+          - { os: ubuntu-22.04, target: linux-x86_64 }
+          - { os: ubuntu-22.04-arm, target: linux-arm64 }
+          - { os: windows-latest, target: windows-x86_64 }
+          # macos-latest is Apple Silicon.
+          - { os: macos-latest, target: macos-arm64 }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Check that the tag matches the project version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the version in pyproject.toml ($version)"
+            exit 1
+          fi
+
+      - name: Run tests
+        if: runner.os == 'Linux'
+        run: uv run pytest -q
+
+      - name: Package
+        # zenode reads its own version from package metadata at import, so the
+        # metadata has to be bundled or the binary crashes on start.
+        run: >
+          uv run --with pyinstaller flet pack src/zenode_monitor/main.py
+          --name zenode-monitor --yes
+          --pyinstaller-build-args=--copy-metadata=zenode
+
+      - name: Archive
+        id: archive
+        run: |
+          name="zenode-monitor-${GITHUB_REF_NAME//\//-}-${{ matrix.target }}"
+          ls -la dist
+          case "$RUNNER_OS" in
+            Linux)
+              tar -czf "$name.tar.gz" -C dist zenode-monitor
+              echo "file=$name.tar.gz" >> "$GITHUB_OUTPUT" ;;
+            Windows)
+              7z a "$name.zip" ./dist/zenode-monitor.exe
+              echo "file=$name.zip" >> "$GITHUB_OUTPUT" ;;
+            macOS)
+              # ditto keeps the .app bundle's permissions and symlinks intact
+              ditto -c -k --keepParent dist/zenode-monitor.app "$name.zip"
+              echo "file=$name.zip" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zenode-monitor-${{ matrix.target }}
+          path: ${{ steps.archive.outputs.file }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" dist/*
+          --repo "$GITHUB_REPOSITORY"
+          --title "$GITHUB_REF_NAME"
+          --generate-notes
