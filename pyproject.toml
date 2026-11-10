@@ -1,0 +1,32 @@
+[project]
+name = "zenode-monitor"
+version = "0.1.0"
+description = "Desktop monitor for zenode nodes on eclipse-zenoh"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "flet[all]>=1.1.2",
+    "flet-charts>=1.1.2",
+    "zenode",
+]
+
+[project.scripts]
+zenode-monitor = "zenode_monitor.main:run"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+zenode = { git = "https://github.com/hse-deb-robodog/zenode", tag = "v0.2.0" }
+
+[tool.flet.app]
+path = "src/zenode_monitor"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
