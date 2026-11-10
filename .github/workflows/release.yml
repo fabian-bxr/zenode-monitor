@@ -50,6 +50,21 @@ jobs:
         if: runner.os == 'Linux'
         run: uv run pytest -q
 
+      - name: Work around a flet pack bug on Windows
+        # flet 1.1.2 opens the client .exe with open(path, "ab", encoding="utf-8"),
+        # which Python rejects. Does nothing once flet no longer contains that call.
+        if: runner.os == 'Windows'
+        run: |
+          uv run python - <<'EOF'
+          import importlib.util, pathlib
+          root = list(importlib.util.find_spec("flet_cli").submodule_search_locations)[0]
+          path = pathlib.Path(root) / "__pyinstaller" / "win_utils.py"
+          src = path.read_text(encoding="utf-8")
+          fixed = src.replace('open(exe_path, "ab", encoding="utf-8")', 'open(exe_path, "ab")')
+          path.write_text(fixed, encoding="utf-8")
+          print("patched" if fixed != src else "nothing to patch", path)
+          EOF
+
       - name: Package
         # zenode reads its own version from package metadata at import, so the
         # metadata has to be bundled or the binary crashes on start.
