@@ -5,8 +5,8 @@ description = "Desktop monitor for zenode nodes on eclipse-zenoh"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "flet[all]>=1.1.2",
-    "flet-charts>=1.1.2",
+    "flet[all]>=1.1.3",
+    "flet-charts>=1.1.3",
     "zenode",
 ]
 

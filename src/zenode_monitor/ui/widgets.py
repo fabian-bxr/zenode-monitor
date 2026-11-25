@@ -181,24 +181,36 @@ class Sparkline:
 
     def __init__(self, height: float = 44, color: str = ft.Colors.PRIMARY, unit: str = "") -> None:
         self.unit = unit
-        self.series = fch.LineChartData(
-            points=[],
-            color=color,
-            stroke_width=1.6,
-            curved=False,
-            point=False,
-            below_line_bgcolor=alpha(color, 0.12),
-        )
+        self.color = color
         # animation=False makes the desktop client fail to render the chart; 0 ms is fine.
         self.chart = fch.LineChart(
-            data_series=[self.series], animation=0, interactive=True, min_y=0, max_y=1
+            data_series=[self._series([])], animation=0, interactive=True, min_y=0, max_y=1
         )
         self.root = ft.Container(self.chart, height=height)
 
+    def _series(self, points: list[fch.LineChartDataPoint]) -> fch.LineChartData:
+        return fch.LineChartData(
+            points=points,
+            color=self.color,
+            stroke_width=1.6,
+            curved=True,
+            curve_smoothness=0.25,
+            prevent_curve_over_shooting=True,
+            point=False,
+            below_line_bgcolor=alpha(self.color, 0.12),
+        )
+
     def set(self, points: list[tuple[float, float]]) -> None:
         suffix = f" {self.unit}" if self.unit else ""
-        self.series.points = [
-            fch.LineChartDataPoint(x, y, tooltip=f"{state.fmt_number(y)}{suffix}") for x, y in points
+        # A fresh series every time, never a mutated points list: Flet then sends a
+        # single replace. Per-point remove/add ops get replayed onto the chart Flet
+        # has just re-sent in full when a page is shown again, leaving stale points
+        # stuck at the end of the line. The sliding x axis changes every point
+        # each tick anyway, so this sends no more data.
+        self.chart.data_series = [
+            self._series(
+                [fch.LineChartDataPoint(x, y, tooltip=f"{state.fmt_number(y)}{suffix}") for x, y in points]
+            )
         ]
         ys = [y for _, y in points] or [0.0]
         lo, hi = min(ys), max(ys)
@@ -237,7 +249,7 @@ class MetricTile:
         latest = node.latest(metric)
         bad = self.alert and bool(latest)
         self.value.color = RED if bad else None
-        self.spark.series.color = RED if bad else ft.Colors.PRIMARY
+        self.spark.color = RED if bad else ft.Colors.PRIMARY
         self.spark.unit = unit
         self.spark.set(spark_points(node.history.get(metric)))
 
