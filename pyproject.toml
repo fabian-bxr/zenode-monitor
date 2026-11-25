@@ -1,6 +1,6 @@
 [project]
 name = "zenode-monitor"
-version = "0.1.0"
+version = "0.1.1"
 description = "Desktop monitor for zenode nodes on eclipse-zenoh"
 readme = "README.md"
 requires-python = ">=3.13"

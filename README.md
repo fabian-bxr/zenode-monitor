@@ -43,7 +43,8 @@ uv run zenode-monitor
 
 `.github/workflows/release.yml` builds a standalone binary with `flet pack` for Linux (x86_64 and arm64), Windows (x86_64) and macOS (Apple Silicon).
 
-- Pushing a tag that matches the version in `pyproject.toml` (for example `v0.1.0`) builds all four and attaches them to a new GitHub release.
+- Merging into `main` with a version in `pyproject.toml` that has no tag yet builds all four, tags the commit `v<version>` and attaches them to a new GitHub release. Merges that keep the version build nothing, so bump it to release.
+- Pushing a tag that matches the version in `pyproject.toml` (for example `v0.1.0`) does the same for that tag.
 - "Run workflow" on the Actions page builds them without releasing; the archives are kept as workflow artifacts.
 
 To build one locally for the platform you are on:
